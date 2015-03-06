@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css">
+    <script src="http://code.jquery.com/jquery-1.11.1.min.js"></script>
+    <script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
+
+    <!--<link rel="stylesheet" href="js/jquery.mobile-1.4.5.css"/>-->
+    <!--<script src="js/jquery-1.11.1.js"></script>-->
+    <!--<script src="js/jquery.mobile-1.4.5.js"></script>-->
+
+    <!--本地MIN文件-->
+    <!--<link rel="stylesheet" href="js/jquery.mobile-1.4.5.min.css"/>-->
+    <!--<script src="js/jquery-1.11.1.min.js"></script>-->
+    <!--<script src="js/jquery.mobile-1.4.5.min.js"></script>-->
+    <title>工作页面</title>
+    <script>
+        //等候信息
+        var loaderWaiting =function(text){
+            $.mobile.loading( "show", {
+                text: text||"请稍候...",
+                textVisible: true,
+                theme: "b",
+                textonly: false
+            });
+        }
+        //全局变量，存储个人信息
+        var personInfo={};//默认空
+        $(document).ready(function(){
+            $("#login-form a:contains('登录')").attr("onclick","login()");
+            $("#logout-form a:contains('确定')").attr("onclick","logout()");
+            addTabClickEvent();
+            if(!isLogin()){
+                //先折叠再关闭Tabs
+                $("#main-menu").tabs("option", "collapsible", true );
+                $("#main-menu").tabs("option", "active", false );
+                $("#main-menu").tabs("disable");
+            }else{
+                $("#main-menu").tabs("enable");
+                $("#main-menu").tabs("option", "collapsible", true );
+                $("#main-menu").tabs("option", "active", false );
+            };
+        });
+        var changeAdvice = function(button){
+            //将“保存”改为“修改” 并 为textarea设值
+            console.log("1-查看答复！")
+            $('#advice-popup form a:first').text("修改答复");
+            $('#advice-popup form textarea').val($(button).parents("tr").find("td[name=hidden-advice]").text());
+            //调用保存答复函数
+            dealOrder(button);
+        }
+        //保存答复答复
+        var dealOrder = function(button){
+            if(button.value=="答复"){
+                $("#advice-popup form textarea").val("");
+            }
+
+            //弹出窗口
+            $('#advice-popup').popup('open');
+            console.log("2-弹窗！");
+            $('#advice-popup form a:first').off('click');
+            //绑定“保存”事件
+            $('#advice-popup form a:first').on('click',function(){
+                console.log("3-保存答复！");
+                if(!$.trim($("#advice-popup form textarea").val())){
+                    alert("给人家写点东西嘛！");
+                }else{
+                    //获得数据:advice和orderid
+                    var data = {
+                        advice:$("#advice-popup form textarea").val(),
+                        orderid:$(button).parents("tr").find("td[name=hidden-orderid]").text(),
+                        from:'dealorder'
+                    }
+                    //将数据发给后台
+                    loaderWaiting();
+                    $.ajax({
+                        url:'orderManager.php',
+                        type:"POST",
+                        async:false,
+                        data:data,
+                        dataType:'text',
+                        error:function(){
+                            $.mobile.loading( "hide" );
+                            alert("网络通信错误");
+                        },
+                        success:function(data){
+                            $.mobile.loading( "hide" );
+                            if(data=="预约答复成功！"){
+//                            删除答复过的那条记录
+//                            $(button).parents("tr").remove()
+                                //刷新当前选项卡
+                                var index=parseInt($("#main-menu").tabs("option", "active"));
+                                $( "#main-menu" ).tabs("option","active",false);
+                                $( "#main-menu" ).tabs("option","active",index);
+                                console.log("4-"+data);
+                            }
+                            $('#advice-popup').one( "popupafterclose", function( event, ui ) {
+                                var detailPopup = $("#detail-popup");
+                                detailPopup.find("div[data-role='header'] h1").text("提示");
+                                detailPopup.find("div[role='main'] p").text(data);
+                                detailPopup.popup('open');
+                            } );
+                            $('#advice-popup').popup('close');
+                        }
+                    })
+                }
+            })
+        }
+        //登录成功后为Tab下的按钮绑定单击事件
+        var addTabClickEvent = function(){
+            $( "#main-menu" ).on( "tabsactivate", function( event, ui ) {
+                if(ui.newPanel.attr("id")=="undone-div"){
+                     //未答复预约
+                    loaderWaiting();
+                    $.ajax({
+                        cache: true,
+                        type: "POST",
+                        url: 'orderManager.php',
+                        data: {from:"undone"},
+                        dataType: 'json',
+                        async: false,
+                        error: function () {
+                            $("#main-menu").tabs("option", "active", false );
+                            $.mobile.loading( "hide" );
+                            alert("服务器通信错误!");
+                        },
+                        success: function (data) {
+                            $.mobile.loading( "hide" );
+                            if(data.msg=="没有查询到结果！"){
+                                $("#main-menu").tabs("option", "collapsible", true );
+                                $("#main-menu").tabs("option", "active", false );
+                                var detailPopup = $("#detail-popup");
+                                detailPopup.find("div[data-role='header'] h1").text("提示");
+                                detailPopup.find("div[role='main'] p").text(data.msg);
+                                detailPopup.popup('open');
+                            }else if (data.msg=="查询成功！"){
+                                //删除表格所有行
+                                $('#undone-order > tbody > tr').remove();
+                                if (data.records) {
+                                    //如果data是数组
+                                    if (data.records instanceof Array) {
+                                        //双层循环
+                                        for (var i = 0, trCount = data.records.length; i < trCount; i++) {
+                                            //增加一行
+                                            $('#undone-order > tbody').append("<tr></tr>");
+                                            var sequence=["createtime","name","tel","pc","detail","service","yuan","dong","hao","gender","state"];
+                                            for(var j= 0,tdCount = sequence.length;j<tdCount;j++){
+                                                //增加对应这行的各列
+                                                $('#undone-order > tbody > tr:last').append("<td name=undone-"+i+"-"+j+">" + data.records[i][sequence[j]] + "</td>");
+                                            }
+                                            //每一行增加一个“答复”按钮
+                                            $('#undone-order > tbody > tr:last').append("<td ><input type='button'id='dealOrder' value='答复' onclick='dealOrder(this)'></td>");
+                                            //每行增加一个隐藏格子，保存orderid
+                                            $('#undone-order > tbody > tr:last').append("<td name='hidden-orderid' style='display: none'>"+data.records[i].orderid+"</td>");
+                                            //如果长度过大，只显示一部分，并增加一个查看详情的按钮
+                                            if(data.records[i]['detail'].length>10){
+                                                var detailTd=$("#undone-order tbody tr:last td[name='undone-"+i+"-4']");
+                                                detailTd.html("<a href='#' name='detailAddress'>"+detailTd.text().substring(0,5)+"..."+"</a>");
+                                                //每行增加一个隐藏格子，保存detail信息
+                                                $('#undone-order > tbody > tr:last').append("<td name='hidden-detail' style='display: none'>"+data.records[i].detail+"</td>");
+                                                detailTd.find("a").on("click",function(){
+                                                    var detailPopup = $("#detail-popup");
+                                                    detailPopup.find("div[data-role='header'] h1").text("故障描述详情");
+                                                    detailPopup.find("div[role='main'] p").text($(this).parents('tr').find("td[name='hidden-detail']").text());
+                                                    detailPopup.popup('open');
+                                                })
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }else if(ui.newPanel.attr("id")=="done-div"){
+                        //已答复预约
+                    loaderWaiting();
+                    $.ajax({
+                        cache: true,
+                        type: "POST",
+                        url: 'orderManager.php',
+                        data: {from:"done"},
+                        dataType: 'json',
+                        async: false,
+                        error: function () {
+                            $("#main-menu").tabs("option", "active", false );
+                            $.mobile.loading( "hide" );
+                            alert("服务器通信错误!");
+                        },
+                        success: function (data) {
+                            $.mobile.loading( "hide" );
+                            if(data.msg=="没有查询到结果！"){
+                            $.mobile.loading( "hide" );
+                            $("#main-menu").tabs("option", "collapsible", true );
+                            $("#main-menu").tabs("option", "active", false );
+                            var detailPopup = $("#detail-popup");
+                            detailPopup.find("div[data-role='header'] h1").text("提示");
+                            detailPopup.find("div[role='main'] p").text(data.msg);
+                            detailPopup.popup('open');
+                        }else if (data.msg=="查询成功！"){
+                            //删除表格所有行
+                            $('#done-order > tbody > tr').remove();
+                            if (data.records) {
+                                //如果data是数组
+                                if (data.records instanceof Array) {
+                                    //双层循环
+                                    for (var i = 0, trCount = data.records.length; i < trCount; i++) {
+                                        //增加一行
+                                        $('#done-order > tbody').append("<tr></tr>");
+                                        var sequence=["createtime","name","tel","pc","detail","service","yuan","dong","hao","gender","state"];
+                                        for(var j= 0,tdCount = sequence.length;j<tdCount;j++){
+                                            //增加对应这行的各列
+                                            $('#done-order > tbody > tr:last').append("<td name=done-"+i+"-"+j+">" + data.records[i][sequence[j]] + "</td>");
+                                        }
+                                        //每一行增加一个“查看答复”按钮
+                                        $('#done-order > tbody > tr:last').append("<td ><input type='button'id='changeAdvice' value='查看答复' onclick='changeAdvice(this)'></td>");
+                                        //每行增加一个隐藏格子，保存orderid
+                                        $('#done-order > tbody > tr:last').append("<td name='hidden-orderid' style='display: none'>"+data.records[i].orderid+"</td>");
+                                        //每行增加一个隐藏格子，保存advice
+                                        $('#done-order > tbody > tr:last').append("<td name='hidden-advice' style='display: none'>"+data.records[i].advice+"</td>");
+                                        //如果长度过大，只显示一部分
+                                        if(data.records[i]['detail'].length>10){
+                                            var detailTd=$("#done-order tbody tr:last td[name='done-"+i+"-4']");
+                                            detailTd.html("<a href='#' name='detailAddress'>"+detailTd.text().substring(0,5)+"..."+"</a>");
+                                            //每行增加一个隐藏格子，保存detail信息
+                                            $('#done-order > tbody > tr:last').append("<td name='hidden-detail' style='display: none'>"+data.records[i].detail+"</td>");
+                                            detailTd.find("a").on("click",function(){
+                                                var detailPopup = $("#detail-popup");
+                                                detailPopup.find("div[data-role='header'] h1").text("故障描述详情");
+                                                detailPopup.find("div[role='main'] p").text($(this).parents('tr').find("td[name='hidden-detail']").text());
+                                                detailPopup.popup('open');
+                                            })
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        }
+                    });
+                }else if(ui.newPanel.attr("id")=="person-info"){
+                    $("#person-info ul li a h1:contains('姓名') span").text(personInfo.name);
+                    $("#person-info ul li a h1:contains('学号') span").text(personInfo.schoolnum);
+                }
+            } );
+        }
+        //检验数据合法性
+        var validInfo = function(){
+            if(!$('#login-name').val()&&!$('#login-password').val()){
+                alert("请填写用户名和密码！");
+                return false;
+            }
+            return true;
+        }
+        //判断是否已登录
+        var isLogin = function(){
+            var isLogin;
+            $.ajax({
+                cache: false,
+                type: "POST",
+                url: 'orderManager.php',
+                data: {from:"start"},
+                dataType: 'json',
+                async: false,
+                error: function () {
+//                    alert("查询登录失败！");
+                    isLogin=false;
+                },
+                success: function (data) {
+                    //如果回复已登录,操作如下
+                    if(data.msg=="已登录！"){
+                        $("#plat-form div[data-role='header'] a:contains('登录')").attr("href","#logout");
+                        $("#plat-form div[data-role='header'] a:contains('登录')").text("注销");
+                        $("#logout-form h4:contains('姓名：')").text("姓名："+data.name);
+                        $("#logout-form h4:contains('学号：')").text("学号："+data.schoolnum);
+                        personInfo.name=data.name;
+                        personInfo.schoolnum=data.schoolnum;
+//                        alert(data.msg);
+                        console.log(data.msg);
+                        isLogin=true;
+                    }else if(data.msg=="未登录！"){
+                        isLogin=false;
+                    }
+                }
+            })
+            return isLogin;
+        }
+        //登录
+        var login = function () {
+            if(validInfo()){
+                loaderWaiting("正在登录...");
+                $.ajax({
+                            cache: true,
+                            type: "POST",
+                            url: 'orderManager.php',
+                            data: $('#login-form').serialize(),
+                            dataType: 'json',
+                            async: false,
+                            error: function () {
+                                $.mobile.loading( "hide" );
+                                alert("登录失败！请重试！");
+                            },
+                            success: function (data) {
+                                $.mobile.loading( "hide" );
+                                //登陆成功后,操作如下
+                                if(data.msg=="登陆成功！"){
+                                    $("#plat-form div[data-role='header'] a:contains('登录')").attr("href","#logout");
+                                    $("#plat-form div[data-role='header'] a:contains('登录')").text("注销");
+                                    $("#logout-form h4:contains('姓名：')").text("姓名："+data.name);
+                                    $("#logout-form h4:contains('学号：')").text("学号："+data.schoolnum);
+                                    personInfo.name=data.name;
+                                    personInfo.schoolnum=data.schoolnum;
+                                    $("#main-menu").tabs("enable");
+                                    alert(data.msg);
+                                }else{
+                                    alert(data.msg);
+                                }
+                            }
+                        }
+                );
+            }
+        }
+     //注销
+    var logout = function(){
+            loaderWaiting("正在注销...");
+            $.ajax({
+                cache: true,
+                type: "POST",
+                url: 'orderManager.php',
+                data: {
+                    from:"logout"
+                },
+                dataType: 'text',
+                async: false,
+                error: function () {
+                    $.mobile.loading( "hide" );
+                    alert("注销失败！请重试！");
+                },
+                success: function (data) {
+                    $.mobile.loading( "hide" );
+                    //注销成功后,操作如下
+                    if(data=="注销成功！"){
+                        $("#plat-form div[data-role='header'] a:contains('注销')").attr("href","#login");
+                        $("#plat-form div[data-role='header'] a:contains('注销')").text("登录");
+                        //先折叠再关闭Tabs
+                        $("#main-menu").tabs("option", "collapsible", true );
+                        $("#main-menu").tabs("option", "active", false );
+                        $("#main-menu").tabs("disable");
+                        personInfo={};
+                        alert(data);
+                    }
+                }
+            })
+        }
+    </script>
+</head>
+<body>
+<!-- working page-->
+<div data-role="page" id="plat-form">
+    <div data-role="header" data-position="fixed">
+        <h1>预约答复</h1>
+        <a href="#login" data-icon="gear" class="ui-btn-right">登录</a>
+    </div>
+    <div data-role="tabs" id="main-menu">
+        <div role="main" class="ui-content">
+            <div data-role="navbar">
+                <ul>
+                    <li><a  href="#undone-div" data-icon="alert">未答复预约</a></li>
+                    <li><a  href="#done-div" data-icon="check">已答复预约</a></li>
+                    <li><a  href="#person-info" data-icon="info">个人信息</a></li>
+                </ul>
+            </div>
+        </div>
+        <div id="undone-div">
+            <table data-role="table" id="undone-order" data-mode="reflow"
+                   class="ui-responsive table-stroke">
+                <thead>
+                <tr>
+                    <th>预约提交时间</th>
+                    <th>姓名</th>
+                    <th>联系电话</th>
+                    <th>机器型号</th>
+                    <th>故障描述</th>
+                    <th>预约类型</th>
+                    <th>园区</th>
+                    <th>栋</th>
+                    <th>宿舍号</th>
+                    <th>宿舍类型</th>
+                    <th>预约状态</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        <div id="done-div" style="width: 100%;text-align: center">
+            <table data-role="table" id="done-order" data-mode="reflow"
+                   class="ui-responsive table-stroke" >
+                <thead>
+                <tr>
+                    <th>预约提交时间</th>
+                    <th>姓名</th>
+                    <th>联系电话</th>
+                    <th>机器型号</th>
+                    <th>故障描述</th>
+                    <th>预约类型</th>
+                    <th>园区</th>
+                    <th>栋</th>
+                    <th>宿舍号</th>
+                    <th>宿舍类型</th>
+                    <th>预约状态</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        <div id="person-info" style="width: 95%;margin: auto">
+            <ul data-role="listview" data-inset="true">
+                <li data-role="list-divider"><h1>资料卡片</h1></li>
+                <li data-icon="gear"><a href="#">
+                    <img src="js/images/worker-photo.jpg">
+                    <h1>姓名：<span></span></h1>
+                    <h1>学号：<span></span></h1>
+                </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div data-role="footer" data-position="fixed">
+        <h4>技术支持By <a href="http://cfanlife.tk">CC</a></h4>
+    </div>
+<!--登录右面板-->
+    <div data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="a"
+         id="login">
+        <form id="login-form">
+            <h2>请登录:</h2>
+            <label for="login-account">用户名:</label>
+            <input type="text" name="account" id="login-account" value="" data-clear-btn="true" data-mini="true">
+            <label for="login-password">密码:</label>
+            <input type="password" name="password" id="login-password" value="" data-clear-btn="true" autocomplete="off" data-mini="true">
+            <input type="hidden" name="from" value="login"/>
+            <div class="ui-grid-a">
+                <div class="ui-block-a"><a href="#" data-rel="close" class="ui-btn ui-shadow ui-corner-all ui-btn-b ui-mini">登录</a></div>
+                <div class="ui-block-b"><a href="#" data-rel="close" class="ui-btn ui-shadow ui-corner-all ui-btn-a ui-mini">取消</a></div>
+            </div>
+        </form>
+    </div>
+<!--注销右面板-->
+    <div data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="a"
+         id="logout">
+        <form id="logout-form">
+            <h2>确认注销?</h2>
+            <div style="text-align: center;margin-bottom: 2em">
+                <h4>姓名：</h4>
+                <h4>学号：</h4>
+            </div>
+            <div class="ui-grid-a">
+                <div class="ui-block-a"><a href="#" data-rel="close" class="ui-btn ui-shadow ui-corner-all ui-btn-b ui-mini">确定</a></div>
+                <div class="ui-block-b"><a href="#" data-rel="close" class="ui-btn ui-shadow ui-corner-all ui-btn-a ui-mini">取消</a></div>
+            </div>
+        </form>
+    </div>
+    <div data-role="popup" id="advice-popup" data-position-to="window">
+        <div data-role="header" data-theme="a" class="ui-corner-top ui-header ui-bar-a" role="banner"><h1>查看答复</h1></div>
+        <form id="advice-form" style="margin: 0.5em 1em">
+            <label for="advice"><b>你的答复:</b></label>
+            <textarea cols="35" rows="10" name="textarea" id="advice" placeholder="在此处填写你的建议，200字以内" maxlength="200" ></textarea>
+            <div class="ui-grid-a">
+                <div class="ui-block-a"><a href="#" class="ui-btn ui-shadow ui-corner-all ui-btn-b ui-mini">保存</a></div>
+                <div class="ui-block-b"><a href="#" data-rel="back" class="ui-btn ui-shadow ui-corner-all ui-btn-a ui-mini">取消</a></div>
+            </div>
+        </form>
+    </div>
+
+    <div data-role="popup" id="detail-popup" data-position-to="window">
+        <div data-role="header" data-theme="a" class="ui-corner-top ui-header ui-bar-a" role="banner">
+            <a href="#" data-rel="back" data-role="button" data-theme="b" data-icon="delete" data-iconpos="notext" class="ui-btn-right">关闭</a>
+            <h1></h1>
+        </div>
+        <div role="main" class="ui-corner-bottom ui-content" style="min-width:5em;max-width: 20em;text-align: center">
+            <p style="text-align: left"></p>
+        </div>
+    </div>
+</div>
+</body>
+</html>

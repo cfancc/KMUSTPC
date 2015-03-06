@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>昆工电脑维修平台预约页面</title>
+    <!--可以在收藏夹中显示出图标-->
+    <link rel="Bookmark"  type="image/x-icon"  href="js/images/favicon.ico"/>
+    <!--可以在地址栏中显示出图标-->
+    <link rel="icon"  type="image/x-icon" href="js/images/favicon.ico" />
+    <link rel="shortcut icon"  type="image/x-icon" href="js/images/favicon.ico" />
+    <!--<link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css">-->
+    <!--<script src="http://code.jquery.com/jquery-1.11.1.min.js"></script>-->
+    <!--<script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>-->
+
+    <!--本地MIN文件-->
+    <link rel="stylesheet" href="js/jquery.mobile.theme-1.4.5.min.css"/>
+    <link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.5/jquery.mobile.structure-1.4.5.min.css"/>
+    <link rel="stylesheet" href="js/custom.css"/>
+    <script src="js/jquery-1.11.1.min.js"></script>
+    <script src="js/jquery.mobile-1.4.5.min.js"></script>
+
+    <style>
+        #addressLabel{
+            margin-top: 1.4em;
+        }
+        .ui-grid-b.center .ui-block-a .ui-select{
+            margin-top: -0.18em;
+        }
+        .ui-grid-b.center label{
+            text-align: center;
+        }
+    </style>
+
+    <script>
+    //等候信息
+    var loaderWaiting =function(){
+        $.mobile.loading( "show", {
+            text: "请稍候...",
+            textVisible: true,
+            theme: "b",
+            textonly: false
+        });
+    }
+    //查看建议
+    var checkAdvice = function(content){
+        var options =
+        {
+            maker:"checkDetail",
+            pageId: "two",
+            noCloseBtn: true,
+            title: "答复内容",
+            content: content,
+            isConfirm: false
+        };
+        generatePopup(options).popup("open");
+    }
+    //绑定第二页的textinput的回车事件
+    $(document).on("pageshow","#two",function(){
+        $("#search-name").bind('keypress',function(e){
+            if(e.keyCode==13){
+                e.preventDefault();
+                $('input[value=开始查找]').trigger('click');
+            }
+        })
+    });
+        //补完一个popup弹出层
+        var generatePopup = function (options) {
+            //接收信息
+            /*
+             {
+             marker:"",
+             pageId:"",
+             noCloseBtn:true|false,
+             title:"",
+             content:"",
+             isConfirm:true|false
+             }
+             * */
+            //找到当前所在的page
+            var popup = $("#"+options.pageId+" div[data-role='popup']");
+            popup.children().remove();//删除子节点
+            popup.attr("id","page-"+options.pageId+options.marker);
+            //在当前page页面后append一个popup div
+            var header = popup.append('<div data-role="header" data-theme="a" class="ui-corner-top ui-header ui-bar-a" role="banner"></div>').children(':last');//创建header
+            header.append('<h1 class="ui-title" role="heading" aria-level="1">' + options.title + '</h1>');//为header增加标题
+            if (!options.noCloseBtn) {//如果有"关闭"按钮,则向header中添加
+                header.append('<a href="#" data-role="button" data-rel="back"  data-icon="delete" class="ui-btn-right" data-iconpos="notext">关闭</a>');
+            }
+            //创建content
+            var content = popup.append('<div role="main" class="ui-corner-bottom ui-content" style="text-align: center"></div>').children(':last');
+            //添加具体文字
+            content.append('<p style="margin: 0.2em 1.5em;display: inline-block;text-align: left">' + options.content + '</p>');
+            //如果是确认对话框
+            if (options.isConfirm) {
+                //添加确认与取消按钮
+                content.append('<div  style="text-align:center">' +
+                '<a href="#" data-role="button" data-inline="true" data-rel="back" data-theme="a">确定</a>' +
+                '<a href="#" data-role="button" data-inline="true" data-rel="back" data-theme="a">取消</a>' +
+                '</div>');
+            }
+            //做一些调整
+            popup.trigger("create");
+            //返回这个popup对象
+            return popup;
+        };
+        //options has properties: href,transition
+        //传入的参数对象options包含:href(Dialog链接地址),transition(过渡效果)
+        //if you need callback method, you must add options.dialog parameter
+        //dialogId(如果需要回调函数callback,需给Dialog的ID)
+        var openDialog = function (options) {
+
+            var href = options.href || "about:blank";
+
+            var transition = options.transition || "none";
+
+            $('body').append("<a id='triggerDialog' href='" + options.href + "' data-rel=\"popup\" data-transition=\"" + "\" style='display:none;'>Open dialog</a> ");
+
+            $("#triggerDialog").trigger('click');
+
+            $('body').find('#triggerDialog').remove();
+            //绑定回调函数
+            if (options.dialogId && options.callback) {
+                $("#" + options.dialogId).on('pageshow', function (event) {
+                    if (typeof options.callback == 'function')
+                        options.callback();
+                });
+            }
+        };
+        //表格数据验证
+        var valid = function () {
+            if (!$('#name').val() || !$('#tel').val() || !$('#qq').val()
+                    || !$('#pc').val() || !$('#detail').val() || !$('#dong').val()
+                    || !$('#hao').val()) {
+                //更改消息框体
+//                $('#message .ui-content *').remove();
+//                $('#message .ui-content').append("<p style='text-align:center'>检查一下,每项都要填哦!</p>");
+                //创建消息体需要接收的参数
+                var options =
+                {
+                    maker:"formValid",
+                    pageId: "one",
+                    noCloseBtn: false,
+                    title: "提示",
+                    content: "再检查一下,每项都要填哦!",
+                    isConfirm: false
+                };
+                var popup = generatePopup(options);
+                popup.popup("open");
+//              alert("检查一下,每项都要填哦!");
+            } else {
+                submitForm();
+            }
+        };
+        //提交表单
+        var submitForm = function () {
+            var options =
+            {
+                maker:"submitConfirm",
+                pageId: "one",
+                noCloseBtn: true,
+                title: "提示",
+                content: "确定提交新的预约吗!",
+                isConfirm: true
+            };
+            var popup = generatePopup(options).popup("open");
+            console.log($("#page-"+options.pageId+options.marker+" a[data-role='button']:contains('确定') "))
+            $("#page-"+options.pageId+options.marker+" a[data-role='button']:contains('确定') ").unbind("click").click(
+                    function(){
+                        loaderWaiting();
+                        $.ajax({
+                                    cache: true,
+                                    type: "POST",
+                                    url: 'orderManager.php',
+                                    data: $('#orderInfo').serialize(),
+                                    async: true,
+                                    error: function () {
+                                        $.mobile.loading( "hide" );
+                                        var options =
+                                        {
+                                            maker:"submitError",
+                                            pageId: "one",
+                                            noCloseBtn: false,
+                                            title: "提示",
+                                            content: "服务器通信错误!",
+                                            isConfirm: false
+                                        };
+                                        generatePopup(options).popup("open");
+//                                        alert("服务器通信错误!");
+                                    },
+                                    success: function (data) {
+                                        $.mobile.loading( "hide" );
+                                        if (data == "success") {
+//                                    alert("预约提交成功!");
+                                            var options =
+                                            {
+                                                maker:"submitSuccess",
+                                                pageId: "one",
+                                                noCloseBtn: false,
+                                                title: "提示",
+                                                content: "预约提交成功!",
+                                                isConfirm: false
+                                            };
+                                            generatePopup(options).popup("open");
+                                            $('#orderInfo')[0].reset();
+                                        } else {
+                                            var options =
+                                            {
+                                                maker:"submitFail",
+                                                pageId: "one",
+                                                noCloseBtn: false,
+                                                title: "提示",
+                                                content: "提交失败!请重试!",
+                                                isConfirm: false
+                                            };
+                                            generatePopup(options).popup("open");
+//                                            alert("提交失败!请重试!");
+                                        }
+                                    }
+                                }
+                        );
+                    }
+            );
+        };
+        //预约查询验证
+        var searchValid = function () {
+            if (!$.trim($('#search-name').val())) {
+//                alert("请输入姓名!");
+                var options =
+                {
+                    maker:"noInput",
+                    pageId: "two",
+                    noCloseBtn: false,
+                    title: "提示",
+                    content: "请输入姓名!",
+                    isConfirm: false
+                };
+                generatePopup(options).popup("open");
+            } else {
+                searchSubmit();
+            }
+        };
+        //预约查询提交
+        var searchSubmit = function () {
+            loaderWaiting();
+            $.ajax({
+                        cache: true,
+                        type: "POST",
+                        url: 'orderManager.php',
+                        data: $('#search-form').serialize(),
+                        dataType: 'json',
+                        async: true,
+                        error: function () {
+                            $.mobile.loading( "hide" );
+                            var options =
+                            {
+                                maker:"searchError",
+                                pageId: "two",
+                                noCloseBtn: false,
+                                title: "提示",
+                                content: "服务器通信错误!",
+                                isConfirm: false
+                            };
+                            generatePopup(options).popup("open");
+//                            alert("服务器通信错误!");
+                        },
+                        success: function (data) {
+                            $.mobile.loading( "hide" );
+                            if(data.msg=="没有查询到结果！"){
+                                $('#order-listview').hide();
+                                alert(data.msg);
+//                                var options =
+//                                {
+//                                    maker:"noResult",
+//                                    pageId: "two",
+//                                    noCloseBtn: true,
+//                                    title: "提示",
+//                                    content: "没有查询到预约结果!",
+//                                    isConfirm: false
+//                                };
+//                                generatePopup(options).popup("open");
+                            }else if (data.msg=="查询成功！"){
+                                //删除ul所有li(第一个li除外)
+                                $('#order-listview li:not(:first)').remove();
+                                if(data.records instanceof Array){
+                                    //循环增加li
+                                    for(var i = 0,liCount = data.records.length;i<liCount;i++){
+
+                                        //增加一个li
+                                        var newLi=$('#order-listview').append("<li></li>").find("li:last");
+                                        //在li中增加内容
+                                        if(data.records[i]['gender']=="男生宿舍"&&data.records[i]['state']=="未答复"){
+                                            newLi.append("<img src='js/images/baozou-man-think.jpg'>");
+                                        }else if(data.records[i]['gender']=="男生宿舍"){
+                                            newLi.append("<img src='js/images/baozou-man-happy.jpg'>");
+                                        }else if(data.records[i]['gender']=="女生宿舍"&&data.records[i]['state']=="未答复"){
+                                            newLi.append("<img src='js/images/baozou-woman-think.jpg'>");
+                                        }else{
+                                            newLi.append("<img src='js/images/baozou-woman-happy.jpg'>");
+                                        }
+                                        newLi.append("<h2>姓名："+data.records[i]['name']+"</h2>");
+                                        newLi.append("<p><strong>联系电话：</strong>"+data.records[i]['tel']+ "</p>");
+                                        newLi.append("<p><strong>地址:</strong>"+data.records[i]['yuan']+"-"+data.records[i]['dong']+"-"+data.records[i]['hao']+"</p>");
+                                        newLi.append("<p><strong>提交预约时间:</strong>"+data.records[i]['createtime']+"</p>")
+                                        newLi.append("<p><strong>预约类型:</strong>"+data.records[i]['service']+"</p>");
+                                        newLi.append("<p><strong>机器型号:</strong>"+data.records[i]['pc']+"</p>");
+                                        newLi.append("<p style='white-space: normal;word-wrap: break-word;'><strong>故障描述:</strong>"+data.records[i]['detail']+"</p>");
+                                        if(data.records[i]['state']=="未答复"){
+                                            newLi.append("<p class='ui-li-aside' style='color: red;font-weight: bold;font-size: medium;'>"+data.records[i]['state']+"</p>");
+                                        }else{
+                                            newLi.append("<p class='ui-li-aside' style='color: green;font-weight: bold;font-size: medium;'>"+data.records[i]['state']+"</p>");
+                                            newLi.append("<p style='text-align: center;font-weight: bold;font-size: medium;'><a href='#' style='margin-left: -5em' value="+data.records[i]['advice']+">查看答复</a></p>");
+                                            newLi.find('p a').on('click', function () {
+                                                var options =
+                                                    {
+                                                        maker:"checkAdvice",
+                                                        pageId: "two",
+                                                        noCloseBtn: false,
+                                                        title: "提示",
+                                                        content: $(this).attr('value'),
+                                                        isConfirm: false
+                                                    };
+                                                generatePopup(options).popup("open");
+                                            });
+                                        }
+                                    }
+                                    $('#order-listview').listview('refresh');
+                                    $('#order-listview').show();
+                                }
+                            }
+                        }
+                    }
+            );
+        }
+    </script>
+</head>
+<body>
+<!-- 第一页面: #one -->
+<div data-role="page" id="one">
+    <!-- 第一个页面的header-->
+    <div data-role="header">
+        <h1>新建预约</h1>
+        <a href="#two" data-icon="search" class="ui-btn-right">查询预约</a>
+    </div>
+    <!-- 页面主体-->
+    <div role="main" class="ui-content">
+        <form action="" method="post" id="orderInfo">
+            <div data-role="fieldcontain">
+                <label for="name">姓名:</label>
+                <input type="text" data-clear-btn="true" name="name" id="name" maxlength="10" value=""/>
+            </div>
+
+            <div data-role="fieldcontain">
+                <label for="tel">电话:</label>
+                <input type="tel" data-clear-btn="true" name="tel" id="tel" maxlength="20" value=""/>
+            </div>
+
+            <div data-role="fieldcontain">
+                <label for="qq">QQ:</label>
+                <input type="tel" data-clear-btn="true" name="qq" id="qq" maxlength="15"value=""/>
+            </div>
+
+            <div data-role="fieldcontain">
+                <label for="pc">机器型号:</label>
+                <input type="text" data-clear-btn="true" name="pc" id="pc" maxlength="20" value=""/>
+            </div>
+            <div data-role="fieldcontain">
+                <label for="detail">故障描述:</label>
+                <textarea name="detail" id="detail" cols="15"  rows="8" maxlength="200" placeholder="200字以内"></textarea>
+            </div>
+            <div data-role="fieldcontain">
+                <label for="service">预约类型:</label>
+                <select name="service" id="service">
+                    <option value="系统及驱动安装">系统及驱动安装</option>
+                    <option value="拆机清灰">拆机清灰</option>
+                    <option value="硬盘检测及修复">硬盘检测及修复</option>
+                    <option value="手机刷机、ROOT、越狱">手机刷机、ROOT、越狱</option>
+                    <option value="机身零件更换">机身零件更换</option>
+                    <option value="文件找回">文件找回</option>
+                    <option value="问题咨询">问题咨询</option>
+                    <option value="其它">其它</option>
+                </select>
+            </div>
+
+            <div data-role="fieldcontain">
+                <label id="addressLabel">地址:</label>
+                <div class="ui-grid-b center">
+                    <div class="ui-block-a">
+                        <div data-role="fieldcontain">
+                            <label for="yuan" class="ui-hidden-accessible">园区:</label>
+                        <select name="yuan" id="yuan"  data-mini="true">
+                            <option value="怡园">怡园</option>
+                            <option value="憬园">憬园</option>
+                            <option value="恬园">恬园</option>
+                            <option value="恒园">恒园</option>
+                            <option value="其它">其它</option>
+                        </select>
+                        </div>
+                    </div>
+
+                    <div class="ui-block-b">
+                        <div data-role="fieldcontain">
+                            <label for="dong" class="ui-hidden-accessible">栋:</label>
+                            <input type="tel" data-clear-btn="true" name="dong" data-mini="true" placeholder="栋(数字)" id="dong" maxlength="2" value=""/>
+                        </div>
+                    </div>
+                    <div class="ui-block-c">
+                        <div data-role="fieldcontain">
+                            <label for="hao" class="ui-hidden-accessible">宿舍:</label>
+                            <input type="tel" data-clear-btn="true" name="hao" data-mini="true" placeholder="宿舍(数字)" id="hao" maxlength="3" value=""/>
+                        </div>
+                    </div>
+                </div >
+            </div>
+
+            <div data-role="fieldcontain">
+                <fieldset data-role="controlgroup" data-type="horizontal">
+                    <legend>宿舍类型:</legend>
+                    <label for="boy">男生宿舍</label>
+                    <input type="radio" name="gender" id="boy" value="男生宿舍" checked/>
+                    <label for="girl">女生宿舍</label>
+                    <input type="radio" name="gender" id="girl" value="女生宿舍"/>
+                </fieldset>
+            </div>
+            <div style="width:100%;text-align:center">
+                <input type="button" data-inline="true" value="提交预约" onclick="valid()"/>
+                <input type="reset" data-inline="true" value="重新填写"/>
+            </div>
+
+            <input type="hidden" name="from" id="from" value="submit"/>
+
+        </form>
+
+    </div>
+    <!-- /content -->
+
+    <div data-role="footer" data-position="fixed">
+        <h4>技术支持By <a href="http://cfanlife.tk">CC</a></h4>
+    </div>
+    <!-- /footer -->
+    <div data-role="popup" id="pageOneMessage" data-position-to="window" ></div>
+</div>
+<!-- /page one -->
+
+
+<!-- Start of second page: #two -->
+<div data-role="page" id="two">
+
+    <div data-role="header">
+        <h1>预约查询</h1>
+        <a href="#one" data-icon="back">返回新建预约</a>
+    </div>
+    <!-- /header -->
+
+    <div role="main" class="ui-content">
+
+        <form method="post" id="search-form">
+            <input type="search" name="name" placeholder="输入你的姓名" id="search-name">
+            <input type="button"  value="开始查找" data-inline="true" onclick="searchValid()">
+            <input type="hidden" name="from" value="search"/>
+        </form>
+        <ul data-role="listview" id="order-listview" style="margin: 1.5em auto;display: none" >
+            <li data-role="list-divider" style="width: inherit"><h1>你的预约：</h1></li>
+        </ul>
+    </div>
+    <!-- /content -->
+    <div data-role="footer" data-position="fixed">
+        <h4>技术支持By <a href="http://cfanlife.tk">CC</a></h4>
+
+    </div>
+    <!-- /footer -->
+    <div data-role="popup" id="pageTwoMessage" data-position-to="window" style="min-width: 10em;max-width: 30em" ></div>
+</div>
+<!-- /page two -->
+</body>
+</html>
